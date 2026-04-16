@@ -1,0 +1,36 @@
+name: Update GEX Levels
+
+on:
+  schedule:
+    # Run at 11:00 UTC = 7:00 AM ET (pre-market)
+    - cron: '0 11 * * 1-5'
+  workflow_dispatch:  # manual trigger button in GitHub UI
+
+jobs:
+  update-gex:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120  # 2 hours max for 1000 tickers
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch GEX data
+        env:
+          MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
+        run: python scripts/fetch_gex.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "GEX Bot"
+          git config user.email "gex-bot@users.noreply.github.com"
+          git add data/
+          git diff --staged --quiet || git commit -m "GEX update $(date -u +%Y-%m-%d)"
+          git push

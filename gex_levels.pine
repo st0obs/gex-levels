@@ -1,0 +1,118 @@
+//@version=6
+// ============================================================================
+// GEX LEVELS — reads from your GitHub repo via request.seed()
+// Draws put wall, call wall, gamma flip, max pain, HVL, top GEX strikes
+// Works for any ticker that has a CSV in your repo (auto-generated daily)
+// ============================================================================
+indicator("GEX Levels", overlay = true, max_lines_count = 50, max_labels_count = 50)
+
+// -------------------- INPUTS --------------------
+grp_main = "GEX Levels"
+show_call_wall  = input.bool(true, "Call Wall",    group = grp_main)
+show_put_wall   = input.bool(true, "Put Wall",     group = grp_main)
+show_gamma_flip = input.bool(true, "Gamma Flip",   group = grp_main)
+show_max_pain   = input.bool(true, "Max Pain",     group = grp_main)
+show_hvl        = input.bool(true, "HVL",          group = grp_main)
+show_top_gex    = input.bool(true, "Top GEX Strikes (5)", group = grp_main)
+
+grp_style = "Style"
+lbl_size   = input.string("small", "Label Size", options = ["tiny", "small", "normal"], group = grp_style)
+line_width = input.int(2, "Line Width", minval = 1, maxval = 4, group = grp_style)
+
+// -------------------- COLORS --------------------
+col_call_wall  = color.new(#00e676, 20)   // bright green
+col_put_wall   = color.new(#ff1744, 20)   // bright red
+col_gamma_flip = color.new(#ffea00, 20)   // yellow
+col_max_pain   = color.new(#e040fb, 20)   // purple
+col_hvl        = color.new(#00b0ff, 20)   // cyan
+col_top_gex    = color.new(#ffffff, 60)   // dim white
+
+// -------------------- DATA FROM GITHUB --------------------
+// request.seed("GitHubUsername/RepoName", "path/to/file.csv", column)
+// Column 0 = time (auto), columns 1-10 = our data fields
+//
+// IMPORTANT: Change "st0obs/gex-levels" below if your repo name is different.
+
+repo = "st0obs/gex-levels"
+
+call_wall_val  = request.seed(repo, "data/" + syminfo.ticker + ".csv", 1)
+put_wall_val   = request.seed(repo, "data/" + syminfo.ticker + ".csv", 2)
+gamma_flip_val = request.seed(repo, "data/" + syminfo.ticker + ".csv", 3)
+max_pain_val   = request.seed(repo, "data/" + syminfo.ticker + ".csv", 4)
+hvl_val        = request.seed(repo, "data/" + syminfo.ticker + ".csv", 5)
+gex1_val       = request.seed(repo, "data/" + syminfo.ticker + ".csv", 6)
+gex2_val       = request.seed(repo, "data/" + syminfo.ticker + ".csv", 7)
+gex3_val       = request.seed(repo, "data/" + syminfo.ticker + ".csv", 8)
+gex4_val       = request.seed(repo, "data/" + syminfo.ticker + ".csv", 9)
+gex5_val       = request.seed(repo, "data/" + syminfo.ticker + ".csv", 10)
+
+// -------------------- LABEL SIZE --------------------
+lbl_sz = lbl_size == "tiny" ? size.tiny : lbl_size == "small" ? size.small : size.normal
+
+// -------------------- HELPER: draw level --------------------
+// We only draw on the last bar to keep the chart clean
+var line  ln_cw = na, var label lb_cw = na
+var line  ln_pw = na, var label lb_pw = na
+var line  ln_gf = na, var label lb_gf = na
+var line  ln_mp = na, var label lb_mp = na
+var line  ln_hv = na, var label lb_hv = na
+var line  ln_g1 = na, var label lb_g1 = na
+var line  ln_g2 = na, var label lb_g2 = na
+var line  ln_g3 = na, var label lb_g3 = na
+var line  ln_g4 = na, var label lb_g4 = na
+var line  ln_g5 = na, var label lb_g5 = na
+
+f_draw(ln, lb, val, col, txt, show) =>
+    new_ln = ln
+    new_lb = lb
+    if barstate.islast and show and not na(val) and val > 0
+        if not na(ln)
+            line.delete(ln)
+            label.delete(lb)
+        new_ln := line.new(bar_index - 50, val, bar_index + 20, val, color = col, width = line_width, style = line.style_solid, extend = extend.right)
+        new_lb := label.new(bar_index + 22, val, txt + " " + str.tostring(val, format.mintick), style = label.style_label_left, color = color.new(col, 40), textcolor = color.white, size = lbl_sz)
+    [new_ln, new_lb]
+
+if barstate.islast
+    [a1, a2] = f_draw(ln_cw, lb_cw, call_wall_val,  col_call_wall,  "CALL WALL",   show_call_wall)
+    ln_cw := a1, lb_cw := a2
+    [b1, b2] = f_draw(ln_pw, lb_pw, put_wall_val,   col_put_wall,   "PUT WALL",    show_put_wall)
+    ln_pw := b1, lb_pw := b2
+    [c1, c2] = f_draw(ln_gf, lb_gf, gamma_flip_val, col_gamma_flip, "GAMMA FLIP",  show_gamma_flip)
+    ln_gf := c1, lb_gf := c2
+    [d1, d2] = f_draw(ln_mp, lb_mp, max_pain_val,   col_max_pain,   "MAX PAIN",    show_max_pain)
+    ln_mp := d1, lb_mp := d2
+    [e1, e2] = f_draw(ln_hv, lb_hv, hvl_val,        col_hvl,        "HVL",         show_hvl)
+    ln_hv := e1, lb_hv := e2
+
+    if show_top_gex
+        [f1, f2] = f_draw(ln_g1, lb_g1, gex1_val, col_top_gex, "GEX #1", true)
+        ln_g1 := f1, lb_g1 := f2
+        [g1, g2] = f_draw(ln_g2, lb_g2, gex2_val, col_top_gex, "GEX #2", true)
+        ln_g2 := g1, lb_g2 := g2
+        [h1, h2] = f_draw(ln_g3, lb_g3, gex3_val, col_top_gex, "GEX #3", true)
+        ln_g3 := h1, lb_g3 := h2
+        [i1, i2] = f_draw(ln_g4, lb_g4, gex4_val, col_top_gex, "GEX #4", true)
+        ln_g4 := i1, lb_g4 := i2
+        [j1, j2] = f_draw(ln_g5, lb_g5, gex5_val, col_top_gex, "GEX #5", true)
+        ln_g5 := j1, lb_g5 := j2
+
+// -------------------- INFO TABLE --------------------
+var table tbl = table.new(position.bottom_right, 2, 7, border_width = 0)
+
+f_tbl(row, txt, val, col) =>
+    table.cell(tbl, 0, row, txt, text_color = color.gray, text_size = size.small, bgcolor = color.new(color.black, 70))
+    v_txt = na(val) or val == 0 ? "—" : str.tostring(val, format.mintick)
+    table.cell(tbl, 1, row, v_txt, text_color = col, text_size = size.small, bgcolor = color.new(color.black, 70))
+
+if barstate.islast
+    f_tbl(0, "Call Wall",   call_wall_val,  col_call_wall)
+    f_tbl(1, "Put Wall",    put_wall_val,   col_put_wall)
+    f_tbl(2, "Gamma Flip",  gamma_flip_val, col_gamma_flip)
+    f_tbl(3, "Max Pain",    max_pain_val,   col_max_pain)
+    f_tbl(4, "HVL",         hvl_val,        col_hvl)
+    f_tbl(5, "Ticker",      na,             color.white)
+    table.cell(tbl, 1, 5, syminfo.ticker, text_color = color.white, text_size = size.small, bgcolor = color.new(color.black, 70))
+    f_tbl(6, "Data",        na,             color.gray)
+    has_data = not na(call_wall_val) and call_wall_val > 0
+    table.cell(tbl, 1, 6, has_data ? "✓ Live" : "✗ No data", text_color = has_data ? color.lime : color.red, text_size = size.small, bgcolor = color.new(color.black, 70))
